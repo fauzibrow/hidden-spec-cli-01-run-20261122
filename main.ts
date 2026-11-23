@@ -541,8 +541,19 @@ function parseUnified(lines: string[], strict: boolean): Edit[] {
     if (!seenHunk) {
       if (line.startsWith('--- ')) {
         if (!(lines[i + 1] ?? '').startsWith('+++ ')) throw new ParseFault(i + 2);
-        if (current.dashOld === null) current.dashOld = dashPath(line);
-        if (current.dashNew === null) current.dashNew = dashPath(lines[i + 1]!);
+        if (current.dashOld !== null) {
+          // A second ---/+++ pair introduces a new section (SPEC: a section
+          // is introduced by a diff --git line or a --- line followed by a
+          // +++ line); it is not more header lines of the current section.
+          current = blankSection();
+          current.dashOld = dashPath(line);
+          current.dashNew = dashPath(lines[i + 1]!);
+          sections.push(current);
+          seenHunk = false;
+        } else {
+          current.dashOld = dashPath(line);
+          if (current.dashNew === null) current.dashNew = dashPath(lines[i + 1]!);
+        }
         i += 2;
         continue;
       }
